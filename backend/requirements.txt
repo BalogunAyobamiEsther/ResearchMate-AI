@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic-settings
+python-dotenv
+pymupdf
+sentence-transformers
+chromadb
+huggingface-hub
+pytest
+httpx
