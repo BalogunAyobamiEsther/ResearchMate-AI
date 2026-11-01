@@ -13,6 +13,10 @@ class Settings(BaseSettings):
 
     # Hugging Face configuration
     HF_TOKEN: str = ""
+    
+    # Google Gemini configuration
+    GOOGLE_GEMINI_TOKEN: str = ""
+    LLM_MODEL: str = "gemini-3.8-flash"
 
     # Embedding model
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
