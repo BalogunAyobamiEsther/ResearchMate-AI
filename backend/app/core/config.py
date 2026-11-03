@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     
     # Google Gemini configuration
     GOOGLE_GEMINI_TOKEN: str = ""
-    LLM_MODEL: str = "gemini-3.8-flash"
+    LLM_MODEL: str = "gemini-3.6-flash"
 
     # Embedding model
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"

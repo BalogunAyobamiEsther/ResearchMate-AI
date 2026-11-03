@@ -1,40 +1,34 @@
 from google import genai
+from google.genai import types
 
 from backend.app.core.config import settings
+from backend.app.schemas.chat import LLMResponse
 
 
-def generate_response(prompt: str) -> str:
+def generate_response(prompt: str) -> LLMResponse:
     """
-    Send a prompt to Google Gemini and return its response.
-
-    Args:
-        prompt: The text prompt sent to the LLM.
-
-    Returns:
-        The generated text response.
+    Send a prompt to Google Gemini and return a structured response.
     """
-
-    # Validate the prompt
     if not prompt.strip():
         raise ValueError("The prompt cannot be empty.")
 
-    # Check whether the API key is configured
     if not settings.GOOGLE_GEMINI_TOKEN:
         raise ValueError("Google Gemini API key is not configured.")
 
-    # Create a Gemini API client
     client = genai.Client(
         api_key=settings.GOOGLE_GEMINI_TOKEN
     )
 
-    # Send the prompt to Gemini
     response = client.models.generate_content(
         model=settings.LLM_MODEL,
-        contents=prompt
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_json_schema=LLMResponse.model_json_schema()
+        )
     )
 
-    # Check whether Gemini returned a response
     if not response.text:
         raise RuntimeError("Gemini returned an empty response.")
 
-    return response.text.strip()
+    return LLMResponse.model_validate_json(response.text)

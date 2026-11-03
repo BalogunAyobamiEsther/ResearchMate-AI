@@ -1,7 +1,9 @@
+
 import pytest
 
 from unittest.mock import patch
 
+from backend.app.schemas.chat import LLMResponse
 from backend.app.services.rag_service import answer_research_question
 
 
@@ -63,7 +65,10 @@ def test_successful_rag_generation():
 
         with patch(
             "backend.app.services.rag_service.generate_response",
-            return_value=generated_answer
+            return_value=LLMResponse(
+                answer=generated_answer,
+                insufficient_evidence=False
+            )
         ):
 
             result = answer_research_question(
@@ -96,7 +101,10 @@ def test_invalid_citations_are_rejected():
 
         with patch(
             "backend.app.services.rag_service.generate_response",
-            return_value=generated_answer
+            return_value=LLMResponse(
+                answer=generated_answer,
+                insufficient_evidence=False
+            )
         ):
 
             result = answer_research_question(
@@ -122,7 +130,10 @@ def test_duplicate_citations_are_removed():
 
         with patch(
             "backend.app.services.rag_service.generate_response",
-            return_value=generated_answer
+            return_value=LLMResponse(
+                answer=generated_answer,
+                insufficient_evidence=False
+            )
         ):
 
             result = answer_research_question(

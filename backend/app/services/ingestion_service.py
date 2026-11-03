@@ -7,7 +7,10 @@ from backend.app.services.chunker import chunk_text
 from backend.app.services.embedding_service import generate_embeddings
 from backend.app.services.vector_store import add_chunks_to_collection
 
-def ingest_document(pdf_path: str) -> dict:
+def ingest_document(
+    pdf_path: str,
+    original_filename: str | None = None
+) -> dict:
     """
     Process a PDF document and store its embeddings in ChromaDB.
 
@@ -29,7 +32,7 @@ def ingest_document(pdf_path: str) -> dict:
     document_id = str(uuid4())
 
     # Get the original PDF filename
-    filename = pdf_file.name
+    filename = original_filename or pdf_file.name
     
     # Step 1: Extract text from the PDF
     pages = extract_text_from_pdf(str(pdf_file))

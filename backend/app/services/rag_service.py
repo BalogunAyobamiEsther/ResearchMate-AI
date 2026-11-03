@@ -3,6 +3,7 @@ import re
 from backend.app.services.retrieval_service import retrieve_relevant_chunks
 from backend.app.services.prompt_builder import build_rag_prompt
 from backend.app.services.llm_service import generate_response
+from backend.app.schemas.chat import LLMResponse
 
 
 def answer_research_question(
@@ -52,8 +53,11 @@ def answer_research_question(
     prompt = rag_data["prompt"]
     sources = rag_data["sources"]
 
-    # Step 4: Generate an answer using Gemini
-    generated_answer = generate_response(prompt)
+        # Step 4: Generate a structured response using Gemini
+    generated_response = generate_response(prompt)
+
+    # Extract the answer text
+    generated_answer = generated_response.answer
 
     # Step 5: Extract source references from the answer
     referenced_ids = re.findall(
@@ -85,8 +89,11 @@ def answer_research_question(
         if source["source_id"] in valid_references
     ]
 
-    # Step 8: Identify whether the answer has valid citations
-    insufficient_evidence = len(citations) == 0
+    # Step 8: Determine whether sufficient evidence exists
+    # Use Gemini's assessment, but require at least one valid citation.
+    insufficient_evidence = (
+        generated_response.insufficient_evidence or len(citations) == 0
+    )
 
     return {
         "answer": generated_answer,

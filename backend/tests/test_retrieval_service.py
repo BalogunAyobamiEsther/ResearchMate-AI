@@ -9,14 +9,20 @@ from backend.app.services.retrieval_service import retrieve_relevant_chunks
 def test_empty_question():
     """Test that an empty question raises a ValueError."""
 
-    with pytest.raises(ValueError, match="The question cannot be empty."):
+    with pytest.raises(
+        ValueError,
+        match="The question cannot be empty."
+    ):
         retrieve_relevant_chunks("")
 
 
 def test_question_containing_only_whitespace():
     """Test that a whitespace-only question is rejected."""
 
-    with pytest.raises(ValueError, match="The question cannot be empty."):
+    with pytest.raises(
+        ValueError,
+        match="The question cannot be empty."
+    ):
         retrieve_relevant_chunks("     ")
 
 
@@ -41,7 +47,9 @@ def test_retrieve_relevant_chunks():
 
     mock_results = {
         "ids": [["chunk-1"]],
-        "documents": [["The study adopted a descriptive survey design."]],
+        "documents": [
+            ["The study adopted a descriptive survey design."]
+        ],
         "metadatas": [[
             {
                 "document_id": "doc-1",
@@ -80,7 +88,7 @@ def test_retrieve_relevant_chunks():
 
     mock_collection.query.assert_called_once_with(
         query_embeddings=[[0.1, 0.2]],
-        n_results=5,
+        n_results=10,
         include=["documents", "metadatas", "distances"]
     )
 
@@ -156,3 +164,120 @@ def test_top_k_does_not_exceed_available_chunks():
         n_results=2,
         include=["documents", "metadatas", "distances"]
     )
+
+
+def test_duplicate_chunks_are_removed():
+    """Test that identical passages from different documents are removed."""
+
+    mock_results = {
+        "ids": [
+            ["chunk-1", "chunk-2", "chunk-3", "chunk-4"]
+        ],
+        "documents": [[
+            "The study adopted a descriptive survey design.",
+            "The study adopted a descriptive survey design.",
+            "Data were collected using questionnaires.",
+            "The study adopted a descriptive survey design."
+        ]],
+        "metadatas": [[
+            {
+                "document_id": "doc-1",
+                "filename": "research1.pdf",
+                "page_number": 2
+            },
+            {
+                "document_id": "doc-2",
+                "filename": "research2.pdf",
+                "page_number": 2
+            },
+            {
+                "document_id": "doc-1",
+                "filename": "research1.pdf",
+                "page_number": 3
+            },
+            {
+                "document_id": "doc-3",
+                "filename": "research3.pdf",
+                "page_number": 2
+            }
+        ]],
+        "distances": [[0.10, 0.11, 0.15, 0.17]]
+    }
+
+    with patch(
+        "backend.app.services.retrieval_service.generate_embedding",
+        return_value=[0.1, 0.2]
+    ):
+
+        with patch(
+            "backend.app.services.retrieval_service.research_collection"
+        ) as mock_collection:
+
+            mock_collection.count.return_value = 9
+            mock_collection.query.return_value = mock_results
+
+            results = retrieve_relevant_chunks(
+                question="What research design was adopted?",
+                top_k=3
+            )
+
+    assert len(results) == 2
+
+    assert results[0]["chunk_id"] == "chunk-1"
+    assert results[0]["document_id"] == "doc-1"
+
+    assert results[1]["chunk_id"] == "chunk-3"
+    assert results[1]["text"] == (
+        "Data were collected using questionnaires."
+    )
+
+    mock_collection.query.assert_called_once_with(
+        query_embeddings=[[0.1, 0.2]],
+        n_results=9,
+        include=["documents", "metadatas", "distances"]
+    )
+
+
+def test_duplicate_chunks_with_different_whitespace_are_removed():
+    """Test that whitespace differences do not prevent deduplication."""
+
+    mock_results = {
+        "ids": [["chunk-1", "chunk-2"]],
+        "documents": [[
+            "The study adopted a descriptive survey design.",
+            "  The study adopted a descriptive\nsurvey design.  "
+        ]],
+        "metadatas": [[
+            {
+                "document_id": "doc-1",
+                "filename": "research1.pdf",
+                "page_number": 2
+            },
+            {
+                "document_id": "doc-2",
+                "filename": "research2.pdf",
+                "page_number": 2
+            }
+        ]],
+        "distances": [[0.10, 0.12]]
+    }
+
+    with patch(
+        "backend.app.services.retrieval_service.generate_embedding",
+        return_value=[0.1, 0.2]
+    ):
+
+        with patch(
+            "backend.app.services.retrieval_service.research_collection"
+        ) as mock_collection:
+
+            mock_collection.count.return_value = 2
+            mock_collection.query.return_value = mock_results
+
+            results = retrieve_relevant_chunks(
+                "What research design was adopted?",
+                top_k=2
+            )
+
+    assert len(results) == 1
+    assert results[0]["chunk_id"] == "chunk-1"
