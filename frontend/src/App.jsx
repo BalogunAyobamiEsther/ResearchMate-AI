@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 import {
@@ -7,6 +6,8 @@ import {
   getDocuments,
   deleteDocument,
   getDocumentDetails,
+  queryResearchAssistant,
+  getDocumentFileUrl,
 } from './services/documentService';
 
 function App() {
@@ -31,6 +32,22 @@ function App() {
   // Navigation state
   const [activeView, setActiveView] = useState('chat');
 
+  // Research chat states
+  const [question, setQuestion] = useState('');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [sendingQuestion, setSendingQuestion] = useState(false);
+  const [chatError, setChatError] = useState('');
+
+  // Reference for automatic chat scrolling
+  const messagesEndRef = useRef(null);
+
+  // Scroll to the latest conversation message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: 'smooth',
+    });
+  }, [chatMessages, sendingQuestion]);
+
   // Fetch documents when the application loads
   useEffect(() => {
     async function loadDocuments() {
@@ -39,8 +56,7 @@ function App() {
         setDocumentsError('');
 
         const result = await getDocuments();
-
-        setDocuments(result.documents);
+        setDocuments(result.documents || []);
       } catch (error) {
         setDocumentsError(error.message);
       } finally {
@@ -99,9 +115,9 @@ function App() {
       setUploadMessage(result.message);
       setSelectedFile(null);
 
-      // Refresh the document list after a successful upload
+      // Refresh the document list after successful upload
       const updatedDocuments = await getDocuments();
-      setDocuments(updatedDocuments.documents);
+      setDocuments(updatedDocuments.documents || []);
 
     } catch (error) {
       setUploadError(error.message);
@@ -126,14 +142,12 @@ function App() {
 
       await deleteDocument(documentId);
 
-      // Remove the deleted document from the displayed list
       setDocuments((currentDocuments) =>
         currentDocuments.filter(
           (document) => document.document_id !== documentId
         )
       );
 
-      // Close details if the deleted document was selected
       if (selectedDocumentDetails?.document_id === documentId) {
         setSelectedDocumentDetails(null);
       }
@@ -163,6 +177,81 @@ function App() {
     }
   }
 
+  // Send a research question to the AI backend
+  async function handleSendQuestion(event) {
+    event.preventDefault();
+
+    const trimmedQuestion = question.trim();
+
+    if (!trimmedQuestion || sendingQuestion) {
+      return;
+    }
+
+    if (trimmedQuestion.length < 3) {
+      setChatError('Please enter a question containing at least 3 characters.');
+      return;
+    }
+
+    // Add the user's question to the conversation
+    const userMessage = {
+      id: `${Date.now()}-user`,
+      role: 'user',
+      content: trimmedQuestion,
+    };
+
+    setChatMessages((previousMessages) => [
+      ...previousMessages,
+      userMessage,
+    ]);
+
+    setQuestion('');
+    setChatError('');
+    setSendingQuestion(true);
+
+    try {
+      const result = await queryResearchAssistant(trimmedQuestion, 5);
+
+      const assistantMessage = {
+        id: `${Date.now()}-assistant`,
+        role: 'assistant',
+        content: result.answer,
+        citations: result.citations || [],
+        evidence: result.evidence || [],
+        insufficientEvidence: result.insufficient_evidence,
+      };
+
+      setChatMessages((previousMessages) => [
+        ...previousMessages,
+        assistantMessage,
+      ]);
+
+    } catch (error) {
+      setChatError(
+        error.message || 'Something went wrong. Please try again.'
+      );
+    } finally {
+      setSendingQuestion(false);
+    }
+  }
+
+  // Start a new research conversation
+  function handleNewResearch() {
+    if (sendingQuestion) {
+      return;
+    }
+
+    setChatMessages([]);
+    setQuestion('');
+    setChatError('');
+    setActiveView('chat');
+  }
+
+  // Populate the chat input using a suggestion
+  function handleSuggestionClick(suggestion) {
+    setQuestion(suggestion);
+    setActiveView('chat');
+  }
+
   return (
     <div className="app-container">
 
@@ -174,7 +263,11 @@ function App() {
           <h2>ResearchMate</h2>
         </div>
 
-        <button className="new-chat-button">
+        <button
+          className="new-chat-button"
+          onClick={handleNewResearch}
+          disabled={sendingQuestion}
+        >
           + New Research
         </button>
 
@@ -273,132 +366,327 @@ function App() {
 
           <section className="chat-workspace">
 
-            <div className="welcome-section">
+            {/* Welcome Section */}
+            {chatMessages.length === 0 && (
 
-              <div className="welcome-icon">✦</div>
+              <div className="welcome-section">
 
-              <h1>Your Research, Made Easier.</h1>
+                <div className="welcome-icon">✦</div>
 
-              <p>
-                Upload your academic papers, ask research questions,
-                and get evidence-based answers with page citations.
-              </p>
+                <h1>Your Research, Made Easier.</h1>
 
-            </div>
+                <p>
+                  Upload your academic papers, ask research questions,
+                  and get evidence-based answers with page citations.
+                </p>
+
+              </div>
+
+            )}
 
             {/* PDF Upload Section */}
-            <div className="upload-section">
+            {chatMessages.length === 0 && (
 
-              <h3>Upload a Research Paper</h3>
+              <div className="upload-section">
 
-              <p>
-                Select an academic PDF to add it to your research workspace.
-                Maximum file size: 20 MB.
-              </p>
+                <h3>Upload a Research Paper</h3>
 
-              <input
-                type="file"
-                accept=".pdf,application/pdf"
-                onChange={handleFileChange}
-              />
-
-              {selectedFile && (
                 <p>
-                  Selected file: {selectedFile.name}
+                  Select an academic PDF to add it to your research workspace.
+                  Maximum file size: 20 MB.
                 </p>
-              )}
 
-              <button
-                onClick={handleUpload}
-                disabled={!selectedFile || uploading}
-              >
-                {uploading ? 'Uploading...' : 'Upload PDF'}
-              </button>
+                <input
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={handleFileChange}
+                />
 
-              {uploadMessage && (
-                <p>{uploadMessage}</p>
-              )}
+                {selectedFile && (
+                  <p>Selected file: {selectedFile.name}</p>
+                )}
 
-              {uploadError && (
-                <p>{uploadError}</p>
-              )}
+                <button
+                  onClick={handleUpload}
+                  disabled={!selectedFile || uploading}
+                >
+                  {uploading ? 'Uploading...' : 'Upload PDF'}
+                </button>
 
-              {uploadedDocument && (
-                <div>
+                {uploadMessage && (
+                  <p>{uploadMessage}</p>
+                )}
 
-                  <h4>Document processed successfully</h4>
+                {uploadError && (
+                  <p role="alert">{uploadError}</p>
+                )}
 
-                  <p>
-                    Filename: {uploadedDocument.filename}
-                  </p>
+                {uploadedDocument && (
 
-                  <p>
-                    Pages: {uploadedDocument.total_pages}
-                  </p>
+                  <div>
 
-                  <p>
-                    Chunks: {uploadedDocument.total_chunks}
-                  </p>
+                    <h4>Document processed successfully</h4>
 
-                  <p>
-                    Embeddings: {uploadedDocument.total_embeddings}
-                  </p>
+                    <p>Filename: {uploadedDocument.filename}</p>
 
-                </div>
-              )}
+                    <p>Pages: {uploadedDocument.total_pages}</p>
 
-            </div>
+                    <p>Chunks: {uploadedDocument.total_chunks}</p>
+
+                    <p>Embeddings: {uploadedDocument.total_embeddings}</p>
+
+                  </div>
+
+                )}
+
+              </div>
+
+            )}
 
             {/* Research Suggestions */}
-            <div className="suggestion-grid">
+            {chatMessages.length === 0 && (
 
-              <div className="suggestion-card">
-                <span>🔍</span>
-                <h4>Understand a paper</h4>
-                <p>
-                  Ask questions about your uploaded research papers.
-                </p>
+              <div className="suggestion-grid">
+
+                <div
+                  className="suggestion-card"
+                  onClick={() =>
+                    handleSuggestionClick(
+                      'What is the main objective of this research paper?'
+                    )
+                  }
+                >
+                  <span>🔍</span>
+                  <h4>Understand a paper</h4>
+                  <p>
+                    Ask questions about your uploaded research papers.
+                  </p>
+                </div>
+
+                <div
+                  className="suggestion-card"
+                  onClick={() =>
+                    handleSuggestionClick(
+                      'What are the major findings of this research?'
+                    )
+                  }
+                >
+                  <span>📑</span>
+                  <h4>Find evidence</h4>
+                  <p>
+                    Retrieve relevant passages from your documents.
+                  </p>
+                </div>
+
+                <div
+                  className="suggestion-card"
+                  onClick={() =>
+                    handleSuggestionClick(
+                      'What evidence supports the conclusions of this study?'
+                    )
+                  }
+                >
+                  <span>📌</span>
+                  <h4>Explore findings</h4>
+                  <p>
+                    Explore research findings and their supporting evidence.
+                  </p>
+                </div>
+
               </div>
 
-              <div className="suggestion-card">
-                <span>📑</span>
-                <h4>Find evidence</h4>
-                <p>
-                  Retrieve relevant passages from your documents.
-                </p>
+            )}
+
+            {/* Conversation Messages */}
+            {chatMessages.length > 0 && (
+
+              <div className="chat-messages">
+
+                {chatMessages.map((message) => (
+
+                  <div
+                    key={message.id}
+                    className={`chat-message ${message.role}`}
+                  >
+
+                    <div className="message-label">
+                      {message.role === 'user'
+                        ? 'You'
+                        : 'ResearchMate AI'}
+                    </div>
+
+                    <div className="message-content">
+                      {message.content}
+                    </div>
+
+                    {/* Evidence warning */}
+                    {message.role === 'assistant' &&
+                      message.insufficientEvidence && (
+
+                        <div className="evidence-warning">
+                          <strong>Insufficient evidence</strong>
+                          <p>
+                            The available research passages may not contain
+                            enough information to fully answer this question.
+                            Verify the answer against the original document.
+                          </p>
+                        </div>
+
+                      )}
+
+                    {/* Citations with PDF links */}
+                    {message.role === 'assistant' &&
+                      message.citations?.length > 0 && (
+
+                        <div className="citation-section">
+
+                          <h4>Supporting Sources</h4>
+
+                          {message.citations.map((citation, index) => (
+
+                            <div
+                              className="citation-item"
+                              key={`${citation.source_id}-${index}`}
+                            >
+
+                              <strong>{citation.source_id}</strong>
+
+                              <span>{citation.filename}</span>
+
+                              <span>
+                                Page {citation.page_number}
+                              </span>
+
+                              <a
+                                href={getDocumentFileUrl(
+                                  citation.document_id,
+                                  citation.page_number
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                Open PDF ↗
+                              </a>
+
+                            </div>
+
+                          ))}
+
+                        </div>
+
+                      )}
+
+                    {/* Retrieved evidence */}
+                    {message.role === 'assistant' &&
+                      message.evidence?.length > 0 && (
+
+                        <details className="evidence-details">
+
+                          <summary>
+                            View retrieved research passages (
+                            {message.evidence.length})
+                          </summary>
+
+                          {message.evidence.map((item, index) => (
+
+                            <div
+                              className="evidence-item"
+                              key={`${item.chunk_id}-${index}`}
+                            >
+
+                              <strong>
+                                {item.source_id} — {item.filename},
+                                {' '}Page {item.page_number}
+                              </strong>
+
+                              <p>{item.text}</p>
+
+                            </div>
+
+                          ))}
+
+                        </details>
+
+                      )}
+
+                  </div>
+
+                ))}
+
+                {/* Loading indicator */}
+                {sendingQuestion && (
+
+                  <div className="chat-message assistant">
+
+                    <div className="message-label">
+                      ResearchMate AI
+                    </div>
+
+                    <div className="message-content loading-message">
+                      ResearchMate is analyzing your documents...
+                    </div>
+
+                  </div>
+
+                )}
+
+                <div ref={messagesEndRef} />
+
               </div>
 
-              <div className="suggestion-card">
-                <span>📌</span>
-                <h4>Track citations</h4>
-                <p>
-                  See which documents and pages support an answer.
-                </p>
-              </div>
+            )}
 
-            </div>
+            {/* Chat Error */}
+            {chatError && (
+              <p className="chat-error" role="alert">
+                {chatError}
+              </p>
+            )}
 
             {/* Chat Input */}
-            <div className="chat-input-container">
+            <form
+              className="chat-input-container"
+              onSubmit={handleSendQuestion}
+            >
 
               <textarea
                 placeholder="Ask a question about your research..."
                 rows="3"
+                value={question}
+                onChange={(event) => {
+                  setQuestion(event.target.value);
+                  if (chatError) setChatError('');
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === 'Enter' &&
+                    !event.shiftKey &&
+                    !event.nativeEvent.isComposing
+                  ) {
+                    event.preventDefault();
+                    event.currentTarget.form.requestSubmit();
+                  }
+                }}
+                disabled={sendingQuestion}
               />
 
               <div className="chat-input-footer">
 
                 <span>
                   ResearchMate AI uses your uploaded documents.
+                  Press Enter to send.
                 </span>
 
-                <button disabled>
-                  Send ↗
+                <button
+                  type="submit"
+                  disabled={!question.trim() || sendingQuestion}
+                >
+                  {sendingQuestion ? 'Thinking...' : 'Send ↗'}
                 </button>
 
               </div>
 
-            </div>
+            </form>
 
           </section>
 
@@ -422,7 +710,7 @@ function App() {
             )}
 
             {documentsError && (
-              <p>{documentsError}</p>
+              <p role="alert">{documentsError}</p>
             )}
 
             {!loadingDocuments &&
@@ -486,10 +774,11 @@ function App() {
             )}
 
             {documentDetailsError && (
-              <p>{documentDetailsError}</p>
+              <p role="alert">{documentDetailsError}</p>
             )}
 
             {selectedDocumentDetails && (
+
               <div className="suggestion-card">
 
                 <h3>Document Details</h3>
@@ -517,6 +806,7 @@ function App() {
                 </button>
 
               </div>
+
             )}
 
           </section>

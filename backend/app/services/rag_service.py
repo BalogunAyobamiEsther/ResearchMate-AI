@@ -1,9 +1,9 @@
+
 import re
 
 from backend.app.services.retrieval_service import retrieve_relevant_chunks
 from backend.app.services.prompt_builder import build_rag_prompt
 from backend.app.services.llm_service import generate_response
-from backend.app.schemas.chat import LLMResponse
 
 
 def answer_research_question(
@@ -11,28 +11,20 @@ def answer_research_question(
     top_k: int = 5
 ) -> dict:
     """
-    Answer a research question using Retrieval-Augmented Generation.
-
-    Args:
-        question: The user's research question.
-        top_k: Number of relevant passages to retrieve.
-
-    Returns:
-        A dictionary containing the answer, citations,
-        supporting evidence and evidence status.
+    Answer a research question using retrieved evidence
+    and validate all generated source citations.
     """
 
-    # Validate the research question
-    if not question.strip():
+    if not question or not question.strip():
         raise ValueError("The research question cannot be empty.")
 
-    # Step 1: Retrieve relevant research passages
+    # Step 1: Retrieve relevant passages
     retrieved_chunks = retrieve_relevant_chunks(
         question=question,
         top_k=top_k
     )
 
-    # Step 2: Handle cases where no passages are retrieved
+    # Step 2: Handle missing evidence
     if not retrieved_chunks:
         return {
             "answer": (
@@ -44,7 +36,7 @@ def answer_research_question(
             "insufficient_evidence": True
         }
 
-    # Step 3: Construct the RAG prompt
+    # Step 3: Build the prompt
     rag_data = build_rag_prompt(
         question=question,
         retrieved_chunks=retrieved_chunks
@@ -53,31 +45,46 @@ def answer_research_question(
     prompt = rag_data["prompt"]
     sources = rag_data["sources"]
 
-        # Step 4: Generate a structured response using Gemini
+    # Step 4: Generate the response
     generated_response = generate_response(prompt)
 
-    # Extract the answer text
     generated_answer = generated_response.answer
 
-    # Step 5: Extract source references from the answer
-    referenced_ids = re.findall(
-        r"\[(S\d+)\]",
+    # Step 5: Extract individual IDs from bracketed citations.
+    # Supports both [S1] and grouped citations such as [S1, S2].
+    citation_groups = re.findall(
+        r"\[(S\d+(?:\s*,\s*S\d+)*)\]",
         generated_answer
     )
 
-    # Step 6: Validate references against retrieved sources
+    referenced_ids = [
+        source_id
+        for group in citation_groups
+        for source_id in re.findall(r"S\d+", group)
+    ]
+
+    # Remove duplicate references while preserving their order
+    referenced_ids = list(dict.fromkeys(referenced_ids))
+
+    # Step 6: Validate source references
     valid_source_ids = {
         source["source_id"]
         for source in sources
     }
 
-    valid_references = list(dict.fromkeys(
+    valid_references = [
         source_id
         for source_id in referenced_ids
         if source_id in valid_source_ids
-    ))
+    ]
 
-    # Step 7: Map valid references to actual document metadata
+    invalid_references = [
+        source_id
+        for source_id in referenced_ids
+        if source_id not in valid_source_ids
+    ]
+
+    # Step 7: Build citation metadata
     citations = [
         {
             "source_id": source["source_id"],
@@ -89,10 +96,11 @@ def answer_research_question(
         if source["source_id"] in valid_references
     ]
 
-    # Step 8: Determine whether sufficient evidence exists
-    # Use Gemini's assessment, but require at least one valid citation.
+    # Step 8: Validate evidence sufficiency
     insufficient_evidence = (
-        generated_response.insufficient_evidence or len(citations) == 0
+        generated_response.insufficient_evidence
+        or len(citations) == 0
+        or len(invalid_references) > 0
     )
 
     return {

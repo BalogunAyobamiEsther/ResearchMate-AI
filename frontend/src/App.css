@@ -1,13 +1,25 @@
+
 /* =========================================
    RESEARCHMATE AI - APPLICATION STYLES
 ========================================= */
 
 /* Main Application Layout */
+
 .app-container {
   display: flex;
   min-height: 100vh;
   width: 100%;
   background: var(--background);
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* =========================================
@@ -144,6 +156,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  background: #f8fafc;
 }
 
 .topbar {
@@ -154,6 +167,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 20px 40px;
+  gap: 15px;
 }
 
 .topbar h3 {
@@ -174,6 +188,7 @@
   border-radius: 20px;
   font-size: 12px;
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .status-indicator span {
@@ -192,12 +207,17 @@
   max-width: 1000px;
   margin: 0 auto;
   padding: 65px 40px 40px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
+
+/* Welcome Section */
 
 .welcome-section {
   text-align: center;
   max-width: 650px;
-  margin: 0 auto 45px;
+  margin: 0 auto 40px;
 }
 
 .welcome-icon {
@@ -225,6 +245,76 @@
 }
 
 /* =========================================
+   PDF UPLOAD SECTION
+========================================= */
+
+.upload-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 25px;
+  margin-bottom: 30px;
+  box-shadow: var(--shadow);
+}
+
+.upload-section h3 {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.upload-section > p {
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 15px;
+}
+
+.upload-section input[type="file"] {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 13px;
+}
+
+.upload-section button {
+  padding: 10px 20px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.upload-section button:hover {
+  opacity: 0.9;
+}
+
+.upload-section button:disabled {
+  opacity: 0.5;
+}
+
+.upload-section > div {
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 9px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.upload-section > div h4 {
+  color: #166534;
+  margin-bottom: 10px;
+}
+
+.upload-section > div p {
+  font-size: 12px;
+  margin: 5px 0;
+}
+
+/* =========================================
    SUGGESTION CARDS
 ========================================= */
 
@@ -232,7 +322,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
-  margin-bottom: 45px;
+  margin-bottom: 35px;
 }
 
 .suggestion-card {
@@ -265,6 +355,193 @@
   line-height: 1.7;
 }
 
+.chat-workspace > .suggestion-grid .suggestion-card {
+  cursor: pointer;
+}
+
+/* =========================================
+   CHAT CONVERSATION
+========================================= */
+
+.chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin: 0 0 30px;
+  width: 100%;
+}
+
+.chat-message {
+  max-width: 85%;
+  padding: 20px;
+  border-radius: 14px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+
+.chat-message.user {
+  align-self: flex-end;
+  background: #e8f0ff;
+  border: 1px solid #cbdcff;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-message.assistant {
+  align-self: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+}
+
+.message-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.message-content {
+  font-size: 14px;
+  line-height: 1.85;
+  color: #334155;
+  white-space: pre-wrap;
+}
+
+.loading-message {
+  color: var(--text-secondary);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* =========================================
+   CITATIONS
+========================================= */
+
+.citation-section {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+}
+
+.citation-section h4 {
+  font-size: 13px;
+  margin-bottom: 12px;
+  color: var(--primary);
+}
+
+.citation-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 11px 13px;
+  margin-bottom: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.citation-item strong {
+  color: var(--accent);
+}
+
+.citation-item span {
+  color: #64748b;
+}
+
+/* =========================================
+   INSUFFICIENT EVIDENCE WARNING
+========================================= */
+
+.evidence-warning {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 9px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+}
+
+.evidence-warning strong {
+  display: block;
+  color: #92400e;
+  font-size: 13px;
+  margin-bottom: 5px;
+}
+
+.evidence-warning p {
+  color: #78350f;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+/* =========================================
+   RETRIEVED EVIDENCE
+========================================= */
+
+.evidence-details {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.evidence-details summary {
+  padding: 13px 15px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.evidence-details summary:hover {
+  background: #eff6ff;
+}
+
+.evidence-item {
+  padding: 15px;
+  border-top: 1px solid var(--border);
+}
+
+.evidence-item strong {
+  display: block;
+  color: #334155;
+  font-size: 12px;
+  margin-bottom: 9px;
+}
+
+.evidence-item p {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+/* =========================================
+   CHAT ERROR
+========================================= */
+
+.chat-error {
+  padding: 12px 15px;
+  margin-bottom: 15px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
 /* =========================================
    CHAT INPUT
 ========================================= */
@@ -275,6 +552,10 @@
   border-radius: 14px;
   padding: 18px;
   box-shadow: var(--shadow);
+  margin-top: auto;
+  position: sticky;
+  bottom: 15px;
+  z-index: 2;
 }
 
 .chat-input-container textarea {
@@ -286,10 +567,16 @@
   color: var(--text-primary);
   background: transparent;
   font-size: 14px;
+  font-family: inherit;
+  line-height: 1.6;
 }
 
 .chat-input-container textarea::placeholder {
   color: #94a3b8;
+}
+
+.chat-input-container textarea:disabled {
+  opacity: 0.6;
 }
 
 .chat-input-footer {
@@ -304,6 +591,7 @@
 .chat-input-footer span {
   color: var(--text-secondary);
   font-size: 11px;
+  line-height: 1.5;
 }
 
 .chat-input-footer button {
@@ -314,11 +602,76 @@
   color: white;
   font-size: 13px;
   font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.chat-input-footer button:hover:not(:disabled) {
+  background: #1d4ed8;
 }
 
 .chat-input-footer button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* =========================================
+   DOCUMENT MANAGEMENT
+========================================= */
+
+.suggestion-card button {
+  padding: 8px 13px;
+  border: none;
+  border-radius: 7px;
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  margin: 10px 6px 0 0;
+}
+
+.suggestion-card button:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.suggestion-card button:disabled {
+  opacity: 0.5;
+}
+
+.chat-workspace > p[role="alert"] {
+  color: #b91c1c;
+  font-size: 13px;
+  margin-bottom: 15px;
+}
+
+/* =========================================
+   LIGHT THEME
+========================================= */
+
+:root {
+  color-scheme: light;
+}
+
+.app-container,
+.main-content {
+  background-color: #f8fafc;
+}
+
+.topbar,
+.suggestion-card,
+.chat-input-container,
+.upload-section,
+.chat-message.assistant {
+  background-color: #ffffff;
+}
+
+.main-content h1,
+.main-content h2,
+.main-content h3,
+.main-content h4 {
+  color: #14213d;
+}
+
+.main-content p {
+  color: #64748b;
 }
 
 /* =========================================
@@ -335,7 +688,11 @@
   }
 
   .suggestion-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .chat-message {
+    max-width: 95%;
   }
 }
 
@@ -378,45 +735,60 @@
     padding: 18px;
   }
 
+  .topbar h3 {
+    font-size: 16px;
+  }
+
+  .topbar p {
+    font-size: 11px;
+  }
+
+  .status-indicator {
+    padding: 7px 9px;
+    font-size: 10px;
+  }
+
   .chat-workspace {
-    padding: 40px 18px;
+    padding: 35px 16px;
   }
 
   .welcome-section h1 {
     font-size: 25px;
   }
 
+  .welcome-section p {
+    font-size: 13px;
+  }
+
+  .suggestion-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-message {
+    max-width: 100%;
+    padding: 15px;
+  }
+
+  .message-content {
+    font-size: 13px;
+  }
+
   .chat-input-footer {
     align-items: flex-start;
   }
-}
 
-/* =========================================
-   LIGHT THEME OVERRIDE
-========================================= */
+  .chat-input-footer span {
+    font-size: 10px;
+  }
 
-:root {
-  color-scheme: light;
-}
+  .chat-input-footer button {
+    padding: 9px 13px;
+    flex-shrink: 0;
+  }
 
-.app-container,
-.main-content {
-  background-color: #f8fafc;
-}
-
-.topbar,
-.suggestion-card,
-.chat-input-container {
-  background-color: #ffffff;
-}
-
-.main-content h1,
-.main-content h2,
-.main-content h3,
-.main-content h4 {
-  color: #14213d;
-}
-
-.main-content p {
-  color: #64748b;
+  .citation-item {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
 }

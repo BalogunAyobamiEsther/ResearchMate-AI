@@ -1,7 +1,9 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, status
 
 from pathlib import Path
 import tempfile
+
+from fastapi import APIRouter, UploadFile, File, HTTPException, status
+from fastapi.responses import FileResponse
 
 from backend.app.core.config import settings
 from backend.app.services.ingestion_service import ingest_document
@@ -14,6 +16,7 @@ from backend.app.services.vector_store import (
 
 # Create the documents API router
 router = APIRouter()
+
 
 # Retrieve all uploaded research documents
 @router.get(
@@ -32,7 +35,8 @@ def list_documents():
         "total_documents": len(documents),
         "documents": documents
     }
-    
+
+
 # Retrieve details of a specific research document
 @router.get(
     "/documents/{document_id}",
@@ -53,6 +57,48 @@ def retrieve_document(document_id: str):
         )
 
     return document
+
+
+# Retrieve the original PDF file
+@router.get(
+    "/documents/{document_id}/file",
+    response_class=FileResponse,
+    tags=["Documents"]
+)
+def retrieve_document_file(document_id: str):
+    """
+    Retrieve the original uploaded PDF using its document ID.
+    """
+
+    # Confirm that the document exists in ChromaDB
+    document = get_document_details(document_id)
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found."
+        )
+
+    # Locate the permanently stored PDF
+    pdf_path = (
+        Path(settings.DOCUMENT_STORAGE_PATH)
+        / f"{document_id}.pdf"
+    )
+
+    if not pdf_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="The original PDF file could not be found."
+        )
+
+    # Return the PDF for browser viewing
+    return FileResponse(
+        path=str(pdf_path),
+        media_type="application/pdf",
+        filename=document["filename"],
+        content_disposition_type="inline"
+    )
+
 
 # PDF document upload endpoint
 @router.post(
@@ -106,9 +152,9 @@ def upload_document(file: UploadFile = File(...)):
 
         # Process the uploaded PDF
         result = ingest_document(
-    pdf_path=temporary_path,
-    original_filename=file.filename
-)
+            pdf_path=temporary_path,
+            original_filename=file.filename
+        )
 
         return {
             "message": "Document uploaded and processed successfully.",
@@ -127,7 +173,8 @@ def upload_document(file: UploadFile = File(...)):
             Path(temporary_path).unlink()
 
         file.file.close()
-        
+
+
 # Delete an uploaded research document
 @router.delete(
     "/documents/{document_id}",
@@ -136,18 +183,44 @@ def upload_document(file: UploadFile = File(...)):
 )
 def remove_document(document_id: str):
     """
-    Delete a document and all its chunks from ChromaDB.
+    Delete a document, its ChromaDB records, and its original PDF.
     """
 
-    deleted = delete_document(document_id)
+    # Confirm that the document exists
+    document = get_document_details(document_id)
 
-    if not deleted:
+    if document is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found."
         )
 
+    # Locate the original PDF
+    pdf_path = (
+        Path(settings.DOCUMENT_STORAGE_PATH)
+        / f"{document_id}.pdf"
+    )
+
+    # Delete the document and its chunks from ChromaDB
+    deleted = delete_document(document_id)
+
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document could not be deleted from the database."
+        )
+
+    # Remove the original PDF if it exists
+    if pdf_path.is_file():
+        try:
+            pdf_path.unlink()
+        except OSError as error:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Document records were deleted, but the original PDF could not be removed."
+            ) from error
+
     return {
-        "message": "Document deleted successfully.",
+        "message": "Document and original PDF deleted successfully.",
         "document_id": document_id
     }

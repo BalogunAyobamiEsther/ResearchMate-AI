@@ -123,3 +123,53 @@ export async function getDocumentDetails(documentId) {
 
   return result;
 }
+
+/**
+ * Send a research question to the ResearchMate AI backend.
+ *
+ * @param {string} question - The user's research question.
+ * @param {number} topK - Number of relevant research passages to retrieve.
+ * @returns {Promise<Object>} The AI-generated answer and its supporting evidence.
+ */
+export async function queryResearchAssistant(question, topK = 5) {
+  if (!question || !question.trim()) {
+    throw new Error('Please enter a research question.');
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/chat/query`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        question: question.trim(),
+        top_k: topK,
+      }),
+    }
+  );
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      result.detail || 'Failed to get a response from ResearchMate AI.'
+    );
+  }
+
+  return result;
+}
+
+/**
+ * Generate a URL for opening an original PDF at a cited page.
+ */
+export function getDocumentFileUrl(documentId, pageNumber) {
+  if (!documentId) {
+    throw new Error('A document ID is required.');
+  }
+
+  const url = `${API_BASE_URL}/documents/${encodeURIComponent(documentId)}/file`;
+
+  return `${url}#page=${Math.max(1, Number(pageNumber) || 1)}`;
+}

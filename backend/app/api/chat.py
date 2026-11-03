@@ -1,8 +1,12 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, status
 
 from backend.app.schemas.chat import ChatRequest, ChatResponse
 from backend.app.services.rag_service import answer_research_question
 
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -32,6 +36,8 @@ def query_research_assistant(request: ChatRequest):
         ) from error
 
     except Exception as error:
+        logger.exception("Research assistant query failed")
+
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="The research assistant could not generate an answer."

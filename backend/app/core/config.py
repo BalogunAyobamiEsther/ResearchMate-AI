@@ -1,3 +1,4 @@
+
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -13,16 +14,23 @@ class Settings(BaseSettings):
 
     # Hugging Face configuration
     HF_TOKEN: str = ""
-    
+
     # Google Gemini configuration
     GOOGLE_GEMINI_TOKEN: str = ""
-    LLM_MODEL: str = "gemini-3.6-flash"
+    LLM_MODEL: str = "gemini-3.5-flash-lite"
 
     # Embedding model
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
 
     # ChromaDB storage
-    CHROMA_DB_PATH: str = str(BASE_DIR / "backend" / "storage" / "chroma_db")
+    CHROMA_DB_PATH: str = str(
+        BASE_DIR / "backend" / "storage" / "chroma_db"
+    )
+
+    # Permanent PDF document storage
+    DOCUMENT_STORAGE_PATH: str = str(
+        BASE_DIR / "backend" / "storage" / "documents"
+    )
 
     # Document processing
     MAX_UPLOAD_SIZE_MB: int = 20
