@@ -1,4 +1,6 @@
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.core.config import settings
 from backend.app.api.documents import router as documents_router
@@ -10,6 +12,18 @@ app = FastAPI(
     title=settings.APP_NAME,
     description="An AI-powered academic research assistant.",
     version="0.1.0"
+)
+
+
+# Configure CORS to allow the React frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
