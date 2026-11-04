@@ -1,4 +1,3 @@
-
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,20 +11,25 @@ class Settings(BaseSettings):
     APP_NAME: str = "ResearchMate AI"
     API_V1_PREFIX: str = "/api/v1"
 
-    # Hugging Face configuration
-    HF_TOKEN: str = ""
+    # Research conversation database
+    DATABASE_URL: str = (
+        f"sqlite:///{(BASE_DIR / 'backend' / 'storage' / 'research_history.db').as_posix()}"
+    )
 
     # Google Gemini configuration
     GOOGLE_GEMINI_TOKEN: str = ""
     LLM_MODEL: str = "gemini-3.5-flash-lite"
 
     # Embedding model
-    EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
+    # Gemini embedding configuration
+    GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"
+    EMBEDDING_DIMENSION: int = 768
 
     # ChromaDB storage
     CHROMA_DB_PATH: str = str(
         BASE_DIR / "backend" / "storage" / "chroma_db"
     )
+    CHROMA_COLLECTION_NAME: str = "research_documents_gemini"
 
     # Permanent PDF document storage
     DOCUMENT_STORAGE_PATH: str = str(

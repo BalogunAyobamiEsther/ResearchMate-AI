@@ -129,10 +129,15 @@ export async function getDocumentDetails(documentId) {
  * Send a research question to the ResearchMate AI backend.
  *
  * @param {string} question - The user's research question.
- * @param {number} topK - Number of relevant research passages to retrieve.
- * @returns {Promise<Object>} The AI-generated answer and its supporting evidence.
+ * @param {number} topK - Number of relevant passages to retrieve.
+ * @param {number|null} conversationId - Existing conversation ID, if any.
+ * @returns {Promise<Object>} The AI-generated answer and supporting evidence.
  */
-export async function queryResearchAssistant(question, topK = 5) {
+export async function queryResearchAssistant(
+  question,
+  topK = 5,
+  conversationId = null
+) {
   if (!question || !question.trim()) {
     throw new Error('Please enter a research question.');
   }
@@ -147,6 +152,7 @@ export async function queryResearchAssistant(question, topK = 5) {
       body: JSON.stringify({
         question: question.trim(),
         top_k: topK,
+        conversation_id: conversationId,
       }),
     }
   );
@@ -161,7 +167,6 @@ export async function queryResearchAssistant(question, topK = 5) {
 
   return result;
 }
-
 /**
  * Generate a URL for opening an original PDF at a cited page.
  */
@@ -173,4 +178,118 @@ export function getDocumentFileUrl(documentId, pageNumber) {
   const url = `${API_BASE_URL}/documents/${encodeURIComponent(documentId)}/file`;
 
   return `${url}#page=${Math.max(1, Number(pageNumber) || 1)}`;
+}
+
+/**
+ * Retrieve all saved research conversations.
+ */
+export async function getConversations() {
+  const response = await fetch(
+    `${API_BASE_URL}/conversations`
+  );
+
+  const result = await response.json().catch(() => []);
+
+  if (!response.ok) {
+    throw new Error(
+      result.detail || 'Failed to retrieve research history.'
+    );
+  }
+
+  return result;
+}
+
+
+/**
+ * Retrieve a specific conversation and its messages.
+ *
+ * @param {number} conversationId
+ */
+export async function getConversation(conversationId) {
+  if (!conversationId) {
+    throw new Error('A conversation ID is required.');
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/conversations/${conversationId}`
+  );
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      result.detail || 'Failed to retrieve conversation.'
+    );
+  }
+
+  return result;
+}
+
+
+/**
+ * Rename an existing research conversation.
+ *
+ * @param {number} conversationId
+ * @param {string} title
+ */
+export async function renameConversation(conversationId, title) {
+  if (!conversationId) {
+    throw new Error('A conversation ID is required.');
+  }
+
+  if (!title || !title.trim()) {
+    throw new Error('A conversation title is required.');
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/conversations/${conversationId}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: title.trim(),
+      }),
+    }
+  );
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      result.detail || 'Failed to rename conversation.'
+    );
+  }
+
+  return result;
+}
+
+
+/**
+ * Delete a research conversation.
+ *
+ * @param {number} conversationId
+ */
+export async function deleteConversation(conversationId) {
+  if (!conversationId) {
+    throw new Error('A conversation ID is required.');
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/conversations/${conversationId}`,
+    {
+      method: 'DELETE',
+    }
+  );
+
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+
+    throw new Error(
+      result.detail || 'Failed to delete conversation.'
+    );
+  }
+
+  return true;
 }

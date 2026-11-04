@@ -1,9 +1,16 @@
 import logging
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
+from backend.app.core.database import get_db
 from backend.app.schemas.chat import ChatRequest, ChatResponse
 from backend.app.services.rag_service import answer_research_question
+from backend.app.services.conversation_service import (
+    create_conversation,
+    get_conversation_by_id,
+    save_message,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -17,15 +24,71 @@ router = APIRouter()
     status_code=status.HTTP_200_OK,
     tags=["Chat"]
 )
-def query_research_assistant(request: ChatRequest):
+def query_research_assistant(
+    request: ChatRequest,
+    db: Session = Depends(get_db)
+):
     """
-    Submit a research question and receive an evidence-grounded answer.
+    Submit a research question, generate an evidence-grounded answer,
+    and save both messages to Research History.
     """
+
+    # Reuse an existing conversation or create a new one.
+    if request.conversation_id is None:
+        title = request.question.strip()[:60]
+
+        if len(request.question.strip()) > 60:
+            title += "..."
+
+        conversation = create_conversation(
+            db=db,
+            title=title
+        )
+
+        conversation_id = conversation.id
+
+    else:
+        conversation = get_conversation_by_id(
+            db=db,
+            conversation_id=request.conversation_id
+        )
+
+        if conversation is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found."
+            )
+
+        conversation_id = conversation.id
+
     try:
+        # Save the user's question.
+        save_message(
+            db=db,
+            conversation_id=conversation_id,
+            role="user",
+            content=request.question
+        )
+
+        # Generate the research answer using the existing RAG service.
         result = answer_research_question(
             question=request.question,
             top_k=request.top_k
         )
+
+        # Save the assistant's response and supporting information.
+        save_message(
+            db=db,
+            conversation_id=conversation_id,
+            role="assistant",
+            content=result["answer"],
+            citations=result["citations"],
+            evidence=result["evidence"],
+            insufficient_evidence=result["insufficient_evidence"]
+        )
+
+        # Return the answer together with its conversation ID.
+        result["conversation_id"] = conversation_id
 
         return result
 

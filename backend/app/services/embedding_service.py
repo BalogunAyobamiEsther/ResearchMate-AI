@@ -1,44 +1,59 @@
-from sentence_transformers import SentenceTransformer
+from google import genai
+from google.genai import types
 
 from backend.app.core.config import settings
 
 
-# Load the embedding model
-embedding_model = SentenceTransformer(settings.EMBEDDING_MODEL)
+def _get_embedding_client():
+    if not settings.GOOGLE_GEMINI_TOKEN:
+        raise ValueError(
+            "Google Gemini API key is not configured."
+        )
+
+    return genai.Client(
+        api_key=settings.GOOGLE_GEMINI_TOKEN
+    )
 
 
 def generate_embedding(text: str) -> list[float]:
-    """
-    Convert a single text string into a numerical embedding.
+    if not text or not text.strip():
+        raise ValueError("The text cannot be empty.")
 
-    Args:
-        text: The input text.
+    client = _get_embedding_client()
 
-    Returns:
-        A list of floating-point numbers representing the text.
-    """
+    response = client.models.embed_content(
+        model=settings.GEMINI_EMBEDDING_MODEL,
+        contents=text,
+        config=types.EmbedContentConfig(
+            task_type="RETRIEVAL_QUERY",
+            output_dimensionality=settings.EMBEDDING_DIMENSION
+        )
+    )
 
-    embedding = embedding_model.encode(text)
-
-    return embedding.tolist()
+    return response.embeddings[0].values
 
 
 def generate_embeddings(texts: list[str]) -> list[list[float]]:
-    """
-    Convert multiple text strings into numerical embeddings.
-
-    Args:
-        texts: A list of text strings.
-
-    Returns:
-        A list of embedding vectors, one for each input text.
-    """
-
-    # Return an empty list when no texts are provided
     if not texts:
         return []
 
-    # Generate embeddings for all texts in one batch
-    embeddings = embedding_model.encode(texts)
+    if any(not text or not text.strip() for text in texts):
+        raise ValueError(
+            "All texts must contain non-whitespace characters."
+        )
 
-    return embeddings.tolist()
+    client = _get_embedding_client()
+
+    response = client.models.embed_content(
+        model="gemini-embedding-001",
+        contents=texts,
+        config=types.EmbedContentConfig(
+            task_type="RETRIEVAL_DOCUMENT",
+            output_dimensionality=768
+        )
+    )
+
+    return [
+        embedding.values
+        for embedding in response.embeddings
+    ]

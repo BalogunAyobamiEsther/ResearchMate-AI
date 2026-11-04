@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import './App.css';
 
@@ -8,6 +9,10 @@ import {
   getDocumentDetails,
   queryResearchAssistant,
   getDocumentFileUrl,
+  getConversations,
+  getConversation,
+  renameConversation,
+  deleteConversation,
 } from './services/documentService';
 
 function App() {
@@ -32,6 +37,16 @@ function App() {
   // Navigation state
   const [activeView, setActiveView] = useState('chat');
 
+  // Research History states
+  const [conversations, setConversations] = useState([]);
+  const [activeConversationId, setActiveConversationId] = useState(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const [renamingConversationId, setRenamingConversationId] = useState(null);
+  const [newConversationTitle, setNewConversationTitle] = useState('');
+  const [savingConversationTitle, setSavingConversationTitle] = useState(false);
+  const [deletingConversationId, setDeletingConversationId] = useState(null);
+
   // Research chat states
   const [question, setQuestion] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
@@ -40,6 +55,104 @@ function App() {
 
   // Reference for automatic chat scrolling
   const messagesEndRef = useRef(null);
+
+  // Load all saved research conversations
+  async function loadHistory() {
+    try {
+      setLoadingHistory(true);
+      setHistoryError('');
+
+      const result = await getConversations();
+      setConversations(result);
+    } catch (error) {
+      setHistoryError(error.message);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }
+
+  // Open an existing research conversation
+  async function handleOpenConversation(conversationId) {
+    try {
+      setHistoryError('');
+
+      const conversation = await getConversation(conversationId);
+
+      const formattedMessages = conversation.messages.map((message) => ({
+        id: message.id,
+        role: message.role,
+        content: message.content,
+        citations: message.citations || [],
+        evidence: message.evidence || [],
+        insufficientEvidence: message.insufficient_evidence,
+      }));
+
+      setActiveConversationId(conversation.id);
+      setChatMessages(formattedMessages);
+      setQuestion('');
+      setChatError('');
+      setActiveView('chat');
+    } catch (error) {
+      setHistoryError(error.message);
+    }
+  }
+
+  // Rename a research conversation
+  async function handleRenameConversation(conversationId) {
+    if (!newConversationTitle.trim()) {
+      setHistoryError('Please enter a conversation title.');
+      return;
+    }
+
+    try {
+      setSavingConversationTitle(true);
+      setHistoryError('');
+
+      await renameConversation(
+        conversationId,
+        newConversationTitle
+      );
+
+      setRenamingConversationId(null);
+      setNewConversationTitle('');
+
+      await loadHistory();
+    } catch (error) {
+      setHistoryError(error.message);
+    } finally {
+      setSavingConversationTitle(false);
+    }
+  }
+
+  // Delete a research conversation
+  async function handleDeleteConversation(conversationId) {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this research conversation? This action cannot be undone.'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingConversationId(conversationId);
+      setHistoryError('');
+
+      await deleteConversation(conversationId);
+
+      if (activeConversationId === conversationId) {
+        setActiveConversationId(null);
+        setChatMessages([]);
+        setQuestion('');
+      }
+
+      await loadHistory();
+    } catch (error) {
+      setHistoryError(error.message);
+    } finally {
+      setDeletingConversationId(null);
+    }
+  }
 
   // Scroll to the latest conversation message
   useEffect(() => {
@@ -66,6 +179,13 @@ function App() {
 
     loadDocuments();
   }, []);
+
+  // Automatically load research history when its workspace is opened
+  useEffect(() => {
+    if (activeView === 'history') {
+      loadHistory();
+    }
+  }, [activeView]);
 
   // Handle PDF selection
   function handleFileChange(event) {
@@ -209,7 +329,15 @@ function App() {
     setSendingQuestion(true);
 
     try {
-      const result = await queryResearchAssistant(trimmedQuestion, 5);
+      // Create a new conversation or continue the active one
+      const result = await queryResearchAssistant(
+        trimmedQuestion,
+        5,
+        activeConversationId
+      );
+
+      // Save the conversation ID returned by the backend
+      setActiveConversationId(result.conversation_id);
 
       const assistantMessage = {
         id: `${Date.now()}-assistant`,
@@ -224,6 +352,9 @@ function App() {
         ...previousMessages,
         assistantMessage,
       ]);
+
+      // Refresh history after the new exchange is saved
+      await loadHistory();
 
     } catch (error) {
       setChatError(
@@ -243,6 +374,7 @@ function App() {
     setChatMessages([]);
     setQuestion('');
     setChatError('');
+    setActiveConversationId(null);
     setActiveView('chat');
   }
 
@@ -825,11 +957,150 @@ function App() {
               <h1>Research History</h1>
 
               <p>
-                Your previous research conversations will appear here.
-                This feature is coming soon.
+                Access, continue, rename and manage your previous
+                research conversations.
               </p>
 
             </div>
+
+            {historyError && (
+              <p className="chat-error" role="alert">
+                {historyError}
+              </p>
+            )}
+
+            {loadingHistory && (
+              <p>Loading your research history...</p>
+            )}
+
+            {!loadingHistory &&
+              !historyError &&
+              conversations.length === 0 && (
+
+                <div className="suggestion-card">
+                  <h3>No research history yet</h3>
+
+                  <p>
+                    Your conversations will appear here automatically
+                    after you submit your first research question.
+                  </p>
+
+                  <button onClick={handleNewResearch}>
+                    Start New Research
+                  </button>
+                </div>
+
+              )}
+
+            {!loadingHistory && conversations.length > 0 && (
+
+              <div className="suggestion-grid">
+
+                {conversations.map((conversation) => (
+
+                  <div
+                    className="suggestion-card"
+                    key={conversation.id}
+                  >
+
+                    <span>📖</span>
+
+                    {renamingConversationId === conversation.id ? (
+
+                      <form
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          handleRenameConversation(conversation.id);
+                        }}
+                      >
+
+                        <input
+                          type="text"
+                          value={newConversationTitle}
+                          onChange={(event) =>
+                            setNewConversationTitle(event.target.value)
+                          }
+                          maxLength={255}
+                          placeholder="Enter conversation title"
+                          autoFocus
+                        />
+
+                        <button
+                          type="submit"
+                          disabled={savingConversationTitle}
+                        >
+                          {savingConversationTitle
+                            ? 'Saving...'
+                            : 'Save Title'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRenamingConversationId(null);
+                            setNewConversationTitle('');
+                            setHistoryError('');
+                          }}
+                          disabled={savingConversationTitle}
+                        >
+                          Cancel
+                        </button>
+
+                      </form>
+
+                    ) : (
+
+                      <>
+
+                        <h4>{conversation.title}</h4>
+
+                        <p>
+                          Last updated:{' '}
+                          {new Date(conversation.updated_at).toLocaleString()}
+                        </p>
+
+                        <button
+                          onClick={() =>
+                            handleOpenConversation(conversation.id)
+                          }
+                        >
+                          Open Conversation
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setRenamingConversationId(conversation.id);
+                            setNewConversationTitle(conversation.title);
+                            setHistoryError('');
+                          }}
+                        >
+                          Rename
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            handleDeleteConversation(conversation.id)
+                          }
+                          disabled={
+                            deletingConversationId === conversation.id
+                          }
+                        >
+                          {deletingConversationId === conversation.id
+                            ? 'Deleting...'
+                            : 'Delete'}
+                        </button>
+
+                      </>
+
+                    )}
+
+                  </div>
+
+                ))}
+
+              </div>
+
+            )}
 
           </section>
 

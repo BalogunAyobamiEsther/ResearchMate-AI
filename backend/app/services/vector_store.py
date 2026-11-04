@@ -9,9 +9,9 @@ chroma_client = chromadb.PersistentClient(
 )
 
 
-# Create or retrieve the ResearchMate collection
+# Create or retrieve the ResearchMate Gemini collection
 research_collection = chroma_client.get_or_create_collection(
-    name="research_documents",
+    name=settings.CHROMA_COLLECTION_NAME,
     metadata={
         "description": "ResearchMate AI document embeddings",
         "hnsw:space": "cosine"

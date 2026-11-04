@@ -4,9 +4,9 @@ python-multipart
 pydantic-settings
 python-dotenv
 pymupdf
-sentence-transformers
 chromadb
-huggingface-hub
 pytest
 httpx
 google-genai
+tenacity
+SQLAlchemy>=2.0,<3.0

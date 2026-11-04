@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import tempfile
 
@@ -67,7 +66,7 @@ def retrieve_document(document_id: str):
 )
 def retrieve_document_file(document_id: str):
     """
-    Retrieve the original uploaded PDF using its document ID.
+    Retrieve the original uploaded PDF for browser viewing.
     """
 
     # Confirm that the document exists in ChromaDB
@@ -91,7 +90,7 @@ def retrieve_document_file(document_id: str):
             detail="The original PDF file could not be found."
         )
 
-    # Return the PDF for browser viewing
+    # Return the PDF for inline browser viewing
     return FileResponse(
         path=str(pdf_path),
         media_type="application/pdf",
@@ -217,7 +216,10 @@ def remove_document(document_id: str):
         except OSError as error:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Document records were deleted, but the original PDF could not be removed."
+                detail=(
+                    "Document records were deleted, but the original "
+                    "PDF could not be removed."
+                )
             ) from error
 
     return {

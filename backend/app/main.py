@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.app.core.config import settings
 from backend.app.api.documents import router as documents_router
 from backend.app.api.chat import router as chat_router
+from backend.app.api.conversations import router as conversations_router
 
 
 # Initialise the FastAPI application
@@ -38,6 +39,7 @@ app.include_router(
     prefix=settings.API_V1_PREFIX
 )
 
+app.include_router(conversations_router, prefix=settings.API_V1_PREFIX)
 
 # Health check endpoint
 @app.get(
