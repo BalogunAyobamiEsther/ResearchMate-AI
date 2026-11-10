@@ -6,6 +6,7 @@ from backend.app.core.config import settings
 from backend.app.api.documents import router as documents_router
 from backend.app.api.chat import router as chat_router
 from backend.app.api.conversations import router as conversations_router
+from backend.app.core.init_db import init_db
 
 
 # Initialise the FastAPI application
@@ -14,6 +15,10 @@ app = FastAPI(
     description="An AI-powered academic research assistant.",
     version="0.1.0"
 )
+
+@app.on_event("startup")
+def startup_event():
+    init_db()
 
 
 # Configure CORS to allow the React frontend
