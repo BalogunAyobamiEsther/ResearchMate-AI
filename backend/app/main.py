@@ -21,6 +21,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "https://researchmate-ai-frontend.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
