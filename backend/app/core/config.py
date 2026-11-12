@@ -1,4 +1,6 @@
+
 from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,7 +22,6 @@ class Settings(BaseSettings):
     GOOGLE_GEMINI_TOKEN: str = ""
     LLM_MODEL: str = "gemini-3.5-flash-lite"
 
-    # Embedding model
     # Gemini embedding configuration
     GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"
     EMBEDDING_DIMENSION: int = 768
@@ -41,11 +42,24 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = 800
     CHUNK_OVERLAP: int = 150
 
+    # Anonymous session configuration
+    SESSION_COOKIE_NAME: str = "researchmate_session"
+    SESSION_COOKIE_MAX_AGE: int = 60 * 60 * 24 * 30  # 30 days
+    SESSION_COOKIE_SECURE: bool = False
+    SESSION_COOKIE_HTTPONLY: bool = True
+    SESSION_COOKIE_SAMESITE: str = "lax"
+
+    # Frontend origins permitted to access the API
+    ALLOWED_ORIGINS: list[str] = [
+        "http://localhost:5173",
+        "https://researchmate-ai-frontend.onrender.com",
+    ]
+
     # Environment configuration
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",
-        extra="ignore"
+        extra="ignore",
     )
 
 

@@ -1,21 +1,22 @@
+
 import chromadb
 
 from backend.app.core.config import settings
 
 
-# Create a persistent ChromaDB client
+# Create a persistent ChromaDB client.
 chroma_client = chromadb.PersistentClient(
     path=settings.CHROMA_DB_PATH
 )
 
 
-# Create or retrieve the ResearchMate Gemini collection
+# Create or retrieve the existing ResearchMate collection.
 research_collection = chroma_client.get_or_create_collection(
     name=settings.CHROMA_COLLECTION_NAME,
     metadata={
         "description": "ResearchMate AI document embeddings",
-        "hnsw:space": "cosine"
-    }
+        "hnsw:space": "cosine",
+    },
 )
 
 
@@ -23,131 +24,130 @@ def add_chunks_to_collection(
     chunks: list[dict],
     embeddings: list[list[float]],
     document_id: str,
-    filename: str
+    filename: str,
+    owner_session_id: str,
 ) -> None:
     """
-    Store document chunks, embeddings, and metadata in ChromaDB.
-
-    Args:
-        chunks: List of text chunks with IDs and page numbers.
-        embeddings: Numerical embeddings corresponding to each chunk.
-        document_id: Unique identifier for the uploaded document.
-        filename: Original PDF filename.
+    Store document chunks, embeddings, and ownership metadata in ChromaDB.
     """
 
-    # Check that every chunk has a corresponding embedding
     if len(chunks) != len(embeddings):
         raise ValueError(
             "The number of chunks must match the number of embeddings."
         )
 
-    # Prepare the metadata for each chunk
+    if not owner_session_id:
+        raise ValueError("A valid owner session ID is required.")
+
     metadatas = [
         {
             "document_id": document_id,
             "filename": filename,
-            "page_number": chunk["page_number"]
+            "page_number": chunk["page_number"],
+            "owner_session_id": owner_session_id,
         }
         for chunk in chunks
     ]
 
-    # Store the chunks in ChromaDB
     research_collection.add(
         ids=[chunk["chunk_id"] for chunk in chunks],
         embeddings=embeddings,
         documents=[chunk["text"] for chunk in chunks],
-        metadatas=metadatas
+        metadatas=metadatas,
     )
 
 
-def get_all_documents() -> list[dict]:
+def get_all_documents(owner_session_id: str) -> list[dict]:
     """
-    Retrieve all unique documents stored in ChromaDB.
-
-    Returns:
-        A list containing document information and chunk counts.
+    Retrieve only documents belonging to a specific browser session.
     """
 
-    # Retrieve metadata for all stored chunks
+    if not owner_session_id:
+        return []
+
     results = research_collection.get(
-        include=["metadatas"]
+        where={"owner_session_id": owner_session_id},
+        include=["metadatas"],
     )
 
     documents = {}
 
-    # Group chunks by their document ID
-    for metadata in results["metadatas"]:
-
+    for metadata in results["metadatas"] or []:
         document_id = metadata["document_id"]
 
         if document_id not in documents:
             documents[document_id] = {
                 "document_id": document_id,
                 "filename": metadata["filename"],
-                "total_chunks": 0
+                "total_chunks": 0,
             }
 
-        # Count chunks belonging to this document
         documents[document_id]["total_chunks"] += 1
 
     return list(documents.values())
 
 
-def delete_document(document_id: str) -> bool:
+def delete_document(
+    document_id: str,
+    owner_session_id: str,
+) -> bool:
     """
-    Delete a document and all its chunks from ChromaDB.
-
-    Args:
-        document_id: Unique ID of the document to delete.
-
-    Returns:
-        True if the document was found and deleted.
-        False if the document does not exist.
+    Delete a document only if it belongs to the given browser session.
     """
 
-    # Check whether the document exists
+    if not owner_session_id:
+        return False
+
+    ownership_filter = {
+        "$and": [
+            {"document_id": document_id},
+            {"owner_session_id": owner_session_id},
+        ]
+    }
+
     results = research_collection.get(
-        where={"document_id": document_id},
-        include=["metadatas"]
+        where=ownership_filter,
+        include=["metadatas"],
     )
 
-    # Return False if no chunks belong to this document
     if not results["ids"]:
         return False
 
-    # Delete all chunks belonging to this document
     research_collection.delete(
-        where={"document_id": document_id}
+        where=ownership_filter,
     )
 
     return True
 
 
-def get_document_details(document_id: str) -> dict | None:
+def get_document_details(
+    document_id: str,
+    owner_session_id: str,
+) -> dict | None:
     """
-    Retrieve details about a specific document.
-
-    Args:
-        document_id: Unique ID of the document.
-
-    Returns:
-        Document information or None if the document doesn't exist.
+    Retrieve document details only if it belongs to the given session.
     """
 
-    # Retrieve all chunks belonging to the document
+    if not owner_session_id:
+        return None
+
+    ownership_filter = {
+        "$and": [
+            {"document_id": document_id},
+            {"owner_session_id": owner_session_id},
+        ]
+    }
+
     results = research_collection.get(
-        where={"document_id": document_id},
-        include=["metadatas"]
+        where=ownership_filter,
+        include=["metadatas"],
     )
 
-    # Check whether the document exists
     if not results["ids"]:
         return None
 
-    # Extract the document metadata
-    metadatas = results["metadatas"]
+    metadatas = results["metadatas"] or []
 
-    # Count the unique pages represented in the document
     total_pages = len({
         metadata["page_number"]
         for metadata in metadatas
@@ -157,5 +157,5 @@ def get_document_details(document_id: str) -> dict | None:
         "document_id": document_id,
         "filename": metadatas[0]["filename"],
         "total_chunks": len(results["ids"]),
-        "total_pages": total_pages
+        "total_pages": total_pages,
     }

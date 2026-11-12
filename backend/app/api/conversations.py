@@ -1,8 +1,9 @@
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from backend.app.core.database import get_db
-from backend.app.models.conversation import Conversation
+from backend.app.core.session import get_session_id, require_trusted_origin
 from backend.app.schemas.conversation import (
     ConversationCreate,
     ConversationRename,
@@ -25,42 +26,56 @@ router = APIRouter()
     "/conversations",
     response_model=ConversationResponse,
     status_code=status.HTTP_201_CREATED,
-    tags=["Research History"]
+    tags=["Research History"],
+    dependencies=[Depends(require_trusted_origin)],
 )
 def create_new_conversation(
     request: ConversationCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
 ):
-    return create_conversation(db=db, title=request.title)
+    return create_conversation(
+        db=db,
+        title=request.title,
+        owner_session_id=session_id,
+    )
 
 
 @router.get(
     "/conversations",
     response_model=list[ConversationListItem],
-    tags=["Research History"]
+    tags=["Research History"],
 )
-def list_conversations(db: Session = Depends(get_db)):
-    return get_all_conversations(db=db)
+def list_conversations(
+    db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
+):
+    return get_all_conversations(
+        db=db,
+        owner_session_id=session_id,
+    )
 
 
 @router.get(
     "/conversations/{conversation_id}",
     response_model=ConversationResponse,
-    tags=["Research History"]
+    tags=["Research History"],
 )
 def read_conversation(
     conversation_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
 ):
     conversation = get_conversation_by_id(
         db=db,
-        conversation_id=conversation_id
+        conversation_id=conversation_id,
+        owner_session_id=session_id,
     )
 
     if conversation is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Conversation not found."
+            detail="Conversation not found.",
         )
 
     return conversation
@@ -69,23 +84,26 @@ def read_conversation(
 @router.patch(
     "/conversations/{conversation_id}",
     response_model=ConversationResponse,
-    tags=["Research History"]
+    tags=["Research History"],
+    dependencies=[Depends(require_trusted_origin)],
 )
 def update_conversation_title(
     conversation_id: int,
     request: ConversationRename,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
 ):
     conversation = rename_conversation(
         db=db,
         conversation_id=conversation_id,
-        title=request.title
+        owner_session_id=session_id,
+        title=request.title,
     )
 
     if conversation is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Conversation not found."
+            detail="Conversation not found.",
         )
 
     return conversation
@@ -94,21 +112,24 @@ def update_conversation_title(
 @router.delete(
     "/conversations/{conversation_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    tags=["Research History"]
+    tags=["Research History"],
+    dependencies=[Depends(require_trusted_origin)],
 )
 def remove_conversation(
     conversation_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
 ):
     deleted = delete_conversation(
         db=db,
-        conversation_id=conversation_id
+        conversation_id=conversation_id,
+        owner_session_id=session_id,
     )
 
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Conversation not found."
+            detail="Conversation not found.",
         )
 
     return None

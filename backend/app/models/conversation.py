@@ -1,3 +1,4 @@
+
 from datetime import datetime, timezone
 
 from sqlalchemy import (
@@ -5,6 +6,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     JSON,
     String,
@@ -29,30 +31,36 @@ class Conversation(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
+    owner_session_id = Column(
+        String(64),
+        nullable=True,
+        index=True,
+    )
+
     title = Column(
         String(255),
         nullable=False,
-        default="New Research"
+        default="New Research",
     )
 
     created_at = Column(
         DateTime(timezone=True),
         default=get_current_utc_time,
-        nullable=False
+        nullable=False,
     )
 
     updated_at = Column(
         DateTime(timezone=True),
         default=get_current_utc_time,
         onupdate=get_current_utc_time,
-        nullable=False
+        nullable=False,
     )
 
     messages = relationship(
         "Message",
         back_populates="conversation",
         cascade="all, delete-orphan",
-        order_by="Message.created_at"
+        order_by="Message.created_at",
     )
 
 
@@ -69,44 +77,44 @@ class Message(Base):
         Integer,
         ForeignKey("conversations.id", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
     role = Column(
         String(20),
-        nullable=False
+        nullable=False,
     )
 
     content = Column(
         Text,
-        nullable=False
+        nullable=False,
     )
 
     citations = Column(
         JSON,
         nullable=True,
-        default=list
+        default=list,
     )
 
     evidence = Column(
         JSON,
         nullable=True,
-        default=list
+        default=list,
     )
 
     insufficient_evidence = Column(
         Boolean,
         nullable=False,
-        default=False
+        default=False,
     )
 
     created_at = Column(
         DateTime(timezone=True),
         default=get_current_utc_time,
-        nullable=False
+        nullable=False,
     )
 
     conversation = relationship(
         "Conversation",
-        back_populates="messages"
+        back_populates="messages",
     )

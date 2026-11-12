@@ -5,18 +5,17 @@ from backend.app.services.vector_store import research_collection
 
 def retrieve_relevant_chunks(
     question: str,
-    top_k: int = 5
+    owner_session_id: str,
+    top_k: int = 5,
 ) -> list[dict]:
     """
-    Retrieve relevant document chunks and remove exact duplicates.
-
-    Args:
-        question: The user's research question.
-        top_k: Maximum number of unique chunks to return.
-
-    Returns:
-        A list of relevant, unique document chunks with metadata.
+    Retrieve relevant document chunks belonging only to a specific
+    browser session and remove exact duplicates.
     """
+
+    # Validate the session owner.
+    if not owner_session_id:
+        raise ValueError("A valid owner session ID is required.")
 
     # Remove unnecessary whitespace from the question.
     question = question.strip()
@@ -29,24 +28,35 @@ def retrieve_relevant_chunks(
     if top_k <= 0:
         raise ValueError("top_k must be greater than zero.")
 
+    # Define the ownership filter.
+    ownership_filter = {
+        "owner_session_id": owner_session_id,
+    }
+
     # Convert the question into an embedding.
     question_embedding = generate_embedding(question)
 
-    # Check the number of stored chunks.
-    total_chunks = research_collection.count()
+    # Count only chunks belonging to this session.
+    session_chunks = research_collection.get(
+        where=ownership_filter,
+        include=["metadatas"],
+    )
 
-    # Return an empty list if no chunks are stored.
+    total_chunks = len(session_chunks["ids"])
+
+    # Return an empty list if this session has no documents.
     if total_chunks == 0:
         return []
 
     # Retrieve a larger candidate pool to allow deduplication.
     candidate_count = min(total_chunks, top_k * 3)
 
-    # Search ChromaDB for the most relevant candidates.
+    # Search only this session's document chunks.
     search_results = research_collection.query(
         query_embeddings=[question_embedding],
         n_results=candidate_count,
-        include=["documents", "metadatas", "distances"]
+        where=ownership_filter,
+        include=["documents", "metadatas", "distances"],
     )
 
     # Extract results returned for the submitted question.
@@ -60,7 +70,10 @@ def retrieve_relevant_chunks(
 
     # Examine candidates in relevance order.
     for chunk_id, document, metadata, distance in zip(
-        chunk_ids, documents, metadatas, distances
+        chunk_ids,
+        documents,
+        metadatas,
+        distances,
     ):
 
         # Normalise text for duplicate comparison.
@@ -79,7 +92,7 @@ def retrieve_relevant_chunks(
             "document_id": metadata["document_id"],
             "filename": metadata["filename"],
             "page_number": metadata["page_number"],
-            "distance": distance
+            "distance": distance,
         })
 
         # Stop when we have enough unique passages.

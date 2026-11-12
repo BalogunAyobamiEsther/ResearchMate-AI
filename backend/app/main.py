@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.core.config import settings
 from backend.app.core.init_db import init_db
+from backend.app.core.session import AnonymousSessionMiddleware
+
 from backend.app.api.documents import router as documents_router
 from backend.app.api.chat import router as chat_router
 from backend.app.api.conversations import router as conversations_router
@@ -27,13 +29,14 @@ app = FastAPI(
 )
 
 
-# Configure CORS to allow the React frontend.
+# Register anonymous browser session middleware.
+app.add_middleware(AnonymousSessionMiddleware)
+
+
+# Configure CORS to allow the React frontend to send session cookies.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://researchmate-ai-frontend.onrender.com",
-    ],
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -8,23 +8,28 @@ from backend.app.services.llm_service import generate_response
 
 def answer_research_question(
     question: str,
-    top_k: int = 5
+    owner_session_id: str,
+    top_k: int = 5,
 ) -> dict:
     """
-    Answer a research question using retrieved evidence
-    and validate all generated source citations.
+    Answer a research question using evidence belonging only
+    to the current browser session and validate generated citations.
     """
+
+    if not owner_session_id:
+        raise ValueError("A valid owner session ID is required.")
 
     if not question or not question.strip():
         raise ValueError("The research question cannot be empty.")
 
-    # Step 1: Retrieve relevant passages
+    # Step 1: Retrieve relevant passages for this session only.
     retrieved_chunks = retrieve_relevant_chunks(
         question=question,
-        top_k=top_k
+        owner_session_id=owner_session_id,
+        top_k=top_k,
     )
 
-    # Step 2: Handle missing evidence
+    # Step 2: Handle missing evidence.
     if not retrieved_chunks:
         return {
             "answer": (
@@ -33,19 +38,19 @@ def answer_research_question(
             ),
             "citations": [],
             "evidence": [],
-            "insufficient_evidence": True
+            "insufficient_evidence": True,
         }
 
-    # Step 3: Build the prompt
+    # Step 3: Build the prompt.
     rag_data = build_rag_prompt(
         question=question,
-        retrieved_chunks=retrieved_chunks
+        retrieved_chunks=retrieved_chunks,
     )
 
     prompt = rag_data["prompt"]
     sources = rag_data["sources"]
 
-    # Step 4: Generate the response
+    # Step 4: Generate the response.
     generated_response = generate_response(prompt)
 
     generated_answer = generated_response.answer
@@ -54,7 +59,7 @@ def answer_research_question(
     # Supports both [S1] and grouped citations such as [S1, S2].
     citation_groups = re.findall(
         r"\[(S\d+(?:\s*,\s*S\d+)*)\]",
-        generated_answer
+        generated_answer,
     )
 
     referenced_ids = [
@@ -63,10 +68,10 @@ def answer_research_question(
         for source_id in re.findall(r"S\d+", group)
     ]
 
-    # Remove duplicate references while preserving their order
+    # Remove duplicate references while preserving their order.
     referenced_ids = list(dict.fromkeys(referenced_ids))
 
-    # Step 6: Validate source references
+    # Step 6: Validate source references.
     valid_source_ids = {
         source["source_id"]
         for source in sources
@@ -84,19 +89,19 @@ def answer_research_question(
         if source_id not in valid_source_ids
     ]
 
-    # Step 7: Build citation metadata
+    # Step 7: Build citation metadata.
     citations = [
         {
             "source_id": source["source_id"],
             "document_id": source["document_id"],
             "filename": source["filename"],
-            "page_number": source["page_number"]
+            "page_number": source["page_number"],
         }
         for source in sources
         if source["source_id"] in valid_references
     ]
 
-    # Step 8: Validate evidence sufficiency
+    # Step 8: Validate evidence sufficiency.
     insufficient_evidence = (
         generated_response.insufficient_evidence
         or len(citations) == 0
@@ -107,5 +112,5 @@ def answer_research_question(
         "answer": generated_answer,
         "citations": citations,
         "evidence": sources,
-        "insufficient_evidence": insufficient_evidence
+        "insufficient_evidence": insufficient_evidence,
     }

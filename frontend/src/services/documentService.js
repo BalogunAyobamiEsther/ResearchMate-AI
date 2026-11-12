@@ -1,6 +1,7 @@
 
-const API_BASE_URL =
-  `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/v1`;
+const API_BASE_URL = `${
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000"
+}/api/v1`;
 
 /**
  * Upload a PDF document to the ResearchMate backend.
@@ -10,18 +11,19 @@ const API_BASE_URL =
  */
 export async function uploadDocument(file) {
   if (!file) {
-    throw new Error('Please select a PDF document.');
+    throw new Error("Please select a PDF document.");
   }
 
   const formData = new FormData();
 
   // The field name must be "file" to match FastAPI.
-  formData.append('file', file);
+  formData.append("file", file);
 
   const response = await fetch(
     `${API_BASE_URL}/documents/upload`,
     {
-      method: 'POST',
+      method: "POST",
+      credentials: "include",
       body: formData,
     }
   );
@@ -30,24 +32,29 @@ export async function uploadDocument(file) {
 
   if (!response.ok) {
     throw new Error(
-      result.detail || 'Document upload failed.'
+      result.detail || "Document upload failed."
     );
   }
 
   return result;
 }
 
+
 export async function checkBackendHealth() {
   const response = await fetch(
-    `${API_BASE_URL}/health`
+    `${API_BASE_URL}/health`,
+    {
+      credentials: "include",
+    }
   );
 
   if (!response.ok) {
-    throw new Error('Backend connection failed.');
+    throw new Error("Backend connection failed.");
   }
 
   return response.json();
 }
+
 
 /**
  * Retrieve all documents stored in ResearchMate AI.
@@ -56,19 +63,23 @@ export async function checkBackendHealth() {
  */
 export async function getDocuments() {
   const response = await fetch(
-    `${API_BASE_URL}/documents`
+    `${API_BASE_URL}/documents`,
+    {
+      credentials: "include",
+    }
   );
 
   const result = await response.json();
 
   if (!response.ok) {
     throw new Error(
-      result.detail || 'Failed to retrieve documents.'
+      result.detail || "Failed to retrieve documents."
     );
   }
 
   return result;
 }
+
 
 /**
  * Delete a document from ResearchMate AI.
@@ -78,13 +89,14 @@ export async function getDocuments() {
  */
 export async function deleteDocument(documentId) {
   if (!documentId) {
-    throw new Error('A document ID is required.');
+    throw new Error("A document ID is required.");
   }
 
   const response = await fetch(
     `${API_BASE_URL}/documents/${documentId}`,
     {
-      method: 'DELETE',
+      method: "DELETE",
+      credentials: "include",
     }
   );
 
@@ -92,12 +104,13 @@ export async function deleteDocument(documentId) {
 
   if (!response.ok) {
     throw new Error(
-      result.detail || 'Failed to delete document.'
+      result.detail || "Failed to delete document."
     );
   }
 
   return result;
 }
+
 
 /**
  * Retrieve details of a specific document.
@@ -107,23 +120,27 @@ export async function deleteDocument(documentId) {
  */
 export async function getDocumentDetails(documentId) {
   if (!documentId) {
-    throw new Error('A document ID is required.');
+    throw new Error("A document ID is required.");
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/documents/${documentId}`
+    `${API_BASE_URL}/documents/${documentId}`,
+    {
+      credentials: "include",
+    }
   );
 
   const result = await response.json().catch(() => ({}));
 
   if (!response.ok) {
     throw new Error(
-      result.detail || 'Failed to retrieve document details.'
+      result.detail || "Failed to retrieve document details."
     );
   }
 
   return result;
 }
+
 
 /**
  * Send a research question to the ResearchMate AI backend.
@@ -139,15 +156,16 @@ export async function queryResearchAssistant(
   conversationId = null
 ) {
   if (!question || !question.trim()) {
-    throw new Error('Please enter a research question.');
+    throw new Error("Please enter a research question.");
   }
 
   const response = await fetch(
     `${API_BASE_URL}/chat/query`,
     {
-      method: 'POST',
+      method: "POST",
+      credentials: "include",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         question: question.trim(),
@@ -161,18 +179,20 @@ export async function queryResearchAssistant(
 
   if (!response.ok) {
     throw new Error(
-      result.detail || 'Failed to get a response from ResearchMate AI.'
+      result.detail || "Failed to get a response from ResearchMate AI."
     );
   }
 
   return result;
 }
+
+
 /**
  * Generate a URL for opening an original PDF at a cited page.
  */
 export function getDocumentFileUrl(documentId, pageNumber) {
   if (!documentId) {
-    throw new Error('A document ID is required.');
+    throw new Error("A document ID is required.");
   }
 
   const url = `${API_BASE_URL}/documents/${encodeURIComponent(documentId)}/file`;
@@ -180,19 +200,23 @@ export function getDocumentFileUrl(documentId, pageNumber) {
   return `${url}#page=${Math.max(1, Number(pageNumber) || 1)}`;
 }
 
+
 /**
  * Retrieve all saved research conversations.
  */
 export async function getConversations() {
   const response = await fetch(
-    `${API_BASE_URL}/conversations`
+    `${API_BASE_URL}/conversations`,
+    {
+      credentials: "include",
+    }
   );
 
   const result = await response.json().catch(() => []);
 
   if (!response.ok) {
     throw new Error(
-      result.detail || 'Failed to retrieve research history.'
+      result.detail || "Failed to retrieve research history."
     );
   }
 
@@ -207,18 +231,21 @@ export async function getConversations() {
  */
 export async function getConversation(conversationId) {
   if (!conversationId) {
-    throw new Error('A conversation ID is required.');
+    throw new Error("A conversation ID is required.");
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/conversations/${conversationId}`
+    `${API_BASE_URL}/conversations/${conversationId}`,
+    {
+      credentials: "include",
+    }
   );
 
   const result = await response.json().catch(() => ({}));
 
   if (!response.ok) {
     throw new Error(
-      result.detail || 'Failed to retrieve conversation.'
+      result.detail || "Failed to retrieve conversation."
     );
   }
 
@@ -234,19 +261,20 @@ export async function getConversation(conversationId) {
  */
 export async function renameConversation(conversationId, title) {
   if (!conversationId) {
-    throw new Error('A conversation ID is required.');
+    throw new Error("A conversation ID is required.");
   }
 
   if (!title || !title.trim()) {
-    throw new Error('A conversation title is required.');
+    throw new Error("A conversation title is required.");
   }
 
   const response = await fetch(
     `${API_BASE_URL}/conversations/${conversationId}`,
     {
-      method: 'PATCH',
+      method: "PATCH",
+      credentials: "include",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         title: title.trim(),
@@ -258,7 +286,7 @@ export async function renameConversation(conversationId, title) {
 
   if (!response.ok) {
     throw new Error(
-      result.detail || 'Failed to rename conversation.'
+      result.detail || "Failed to rename conversation."
     );
   }
 
@@ -273,13 +301,14 @@ export async function renameConversation(conversationId, title) {
  */
 export async function deleteConversation(conversationId) {
   if (!conversationId) {
-    throw new Error('A conversation ID is required.');
+    throw new Error("A conversation ID is required.");
   }
 
   const response = await fetch(
     `${API_BASE_URL}/conversations/${conversationId}`,
     {
-      method: 'DELETE',
+      method: "DELETE",
+      credentials: "include",
     }
   );
 
@@ -287,7 +316,7 @@ export async function deleteConversation(conversationId) {
     const result = await response.json().catch(() => ({}));
 
     throw new Error(
-      result.detail || 'Failed to delete conversation.'
+      result.detail || "Failed to delete conversation."
     );
   }
 
